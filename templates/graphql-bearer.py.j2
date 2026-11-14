@@ -1,0 +1,24 @@
+from locust import HttpUser, task
+
+
+class GraphQLUser(HttpUser):
+    host = "{{ base_url }}"
+
+    def on_start(self):
+        """Set up authentication headers."""
+        self.headers = {
+            "Authorization": "Bearer {{ bearer_token }}",
+            "Content-Type": "application/json"
+        }
+
+    {% for op in operations %}
+    @task
+    def {{ op.name }}(self):
+        """{{ op.type }} {{ op.name }}"""
+        query = """{{ op.query }}"""
+        self.client.post(
+            "/graphql",
+            headers=self.headers,
+            json={"query": query}
+        )
+    {% endfor %}

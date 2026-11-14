@@ -1,0 +1,38 @@
+from locust import HttpUser, task
+
+
+class APIUser(HttpUser):
+    host = "{{ base_url }}"
+
+    def on_start(self):
+        """Set up API key headers."""
+        {% if api_key_location == "header" %}
+        self.headers = {
+            "{{ api_key_name }}": "{{ api_key }}",
+            "Content-Type": "application/json"
+        }
+        {% endif %}
+
+    {% for ep in endpoints %}
+    @task
+    def {{ ep.name }}(self):
+        """{{ ep.method }} {{ ep.path }}"""
+        {% if api_key_location == "query" %}
+        url = "{{ ep.path }}?{{ api_key_name }}={{ api_key }}"
+        {% else %}
+        url = "{{ ep.path }}"
+        {% endif %}
+        {% if ep.payload %}
+        payload = {{ ep.payload }}
+        self.client.{{ ep.method.lower() }}(
+            url,
+            {% if api_key_location == "header" %}headers=self.headers,{% endif %}
+            json=payload
+        )
+        {% else %}
+        self.client.{{ ep.method.lower() }}(
+            url{% if api_key_location == "header" %},
+            headers=self.headers{% endif %}
+        )
+        {% endif %}
+    {% endfor %}
