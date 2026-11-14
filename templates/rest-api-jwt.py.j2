@@ -1,0 +1,32 @@
+from locust import HttpUser, task
+import json
+
+
+class APIUser(HttpUser):
+    host = "{{ base_url }}"
+
+    def on_start(self):
+        """Set up authentication headers."""
+        self.headers = {
+            "Authorization": "Bearer {{ jwt_token }}",
+            "Content-Type": "application/json"
+        }
+
+    {% for ep in endpoints %}
+    @task
+    def {{ ep.name }}(self):
+        """{{ ep.method }} {{ ep.path }}"""
+        {% if ep.payload %}
+        payload = {{ ep.payload }}
+        self.client.{{ ep.method.lower() }}(
+            "{{ ep.path }}",
+            headers=self.headers,
+            json=payload
+        )
+        {% else %}
+        self.client.{{ ep.method.lower() }}(
+            "{{ ep.path }}",
+            headers=self.headers
+        )
+        {% endif %}
+    {% endfor %}

@@ -14,9 +14,10 @@ class TemplateRenderer:
             templates_dir: Directory containing Jinja2 templates
         """
         self.templates_dir = templates_dir
+        # Disable autoescape for Python templates - we need raw code output
         self.env = Environment(
             loader=FileSystemLoader(str(templates_dir)),
-            autoescape=select_autoescape(enabled_extensions=('j2',), default=True)
+            autoescape=False
         )
 
     def render(self, template_name: str, context: dict) -> str:
