@@ -15,8 +15,12 @@ Engineers run 4 phased skills to performance test their services:
 ### Installation
 
 ```bash
+# Install the framework
 cd ~/perf-framework/cli
 pip install -e .
+
+# Skills are automatically available in .claude/skills/
+# Use /perf-analyze, /perf-prepare, /perf-execute, /perf-report in Claude Code
 ```
 
 ### Usage
