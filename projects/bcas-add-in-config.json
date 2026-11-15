@@ -4,7 +4,7 @@
   "auth_type": "jwt",
   "base_url": "https://bcas-add-in.qa-ue2.bcas.cudaops.com",
   "credentials": {
-    "jwt_token": "REPLACE_ME"
+    "jwt_token": ""
   },
   "load_profile": {
     "users": 200,
