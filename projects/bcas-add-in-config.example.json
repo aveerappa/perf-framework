@@ -1,0 +1,148 @@
+{
+  "service_name": "bcas-add-in",
+  "service_type": "rest-api",
+  "auth_type": "jwt",
+  "base_url": "https://bcas-add-in.qa-ue2.bcas.cudaops.com",
+  "credentials": {
+    "jwt_token": "REPLACE_ME"
+  },
+  "load_profile": {
+    "users": 200,
+    "spawn_rate": 20,
+    "duration": 900,
+    "target_rps": 500
+  },
+  "endpoints": [
+    {
+      "path": "/api/v1/health",
+      "method": "GET",
+      "requires_auth": false,
+      "weight": 5,
+      "description": "Liveness probe"
+    },
+    {
+      "path": "/api/v1/config",
+      "method": "GET",
+      "requires_auth": false,
+      "weight": 5,
+      "description": "Public runtime configuration"
+    },
+    {
+      "path": "/api/v1/me",
+      "method": "GET",
+      "requires_auth": true,
+      "weight": 8,
+      "description": "Current user information"
+    },
+    {
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "requires_auth": true,
+      "weight": 1,
+      "description": "Session termination"
+    },
+    {
+      "path": "/api/v1/archive/documents/{documentId}",
+      "method": "GET",
+      "requires_auth": true,
+      "weight": 15,
+      "description": "Retrieve archived document",
+      "path_params": {
+        "documentId": "184e9445f18e4bfda25311bc354e5375f8f14a75"
+      }
+    },
+    {
+      "path": "/api/v1/archive/documents/{documentId}/attachments/{attachmentIdx}",
+      "method": "GET",
+      "requires_auth": true,
+      "weight": 10,
+      "description": "Retrieve document attachment",
+      "path_params": {
+        "documentId": "184e9445f18e4bfda25311bc354e5375f8f14a75",
+        "attachmentIdx": "0?location=s3:%2F%2Fbcas-qa-ue2-messages%2Ftenant_id%3Dbma_e2c49c6f-61cb-44e8-b2ba-3e5a020ea495%2Fday%3D2026-11-12%2F184e9445f18e4bfda25311bc354e5375f8f14a75.zstd"
+      }
+    },
+    {
+      "path": "/api/v1/search",
+      "method": "POST",
+      "requires_auth": true,
+      "weight": 15,
+      "description": "Search archived messages",
+      "payload": {
+        "queryObject": {
+          "conjunction": [
+            "AND",
+            "AND"
+          ],
+          "data": [
+            {
+              "field": "search_all_words",
+              "operator": "=",
+              "object_type": "Email",
+              "values": [
+                "test"
+              ]
+            },
+            {
+              "field": "has_any_attachment_type",
+              "operator": "=",
+              "object_type": "Email",
+              "values": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "offset": 0,
+        "size": 10,
+        "sort": [
+          {
+            "delivery_date": "desc"
+          },
+          {
+            "uri": "asc"
+          }
+        ]
+      }
+    },
+    {
+      "path": "/api/v1/mixpanel/track",
+      "method": "POST",
+      "requires_auth": true,
+      "weight": 7,
+      "description": "Track user event",
+      "payload": {
+        "event": "BCAS Outlook / Task Pane / Search Performed",
+        "properties": {
+          "criteria_count": 2,
+          "has_keywords": true,
+          "has_from_filter": false,
+          "has_to_filter": false,
+          "has_date_range": false,
+          "has_attachments_filter": true,
+          "from_count": 0,
+          "to_count": 0
+        },
+        "outlookPlatform": "web"
+      }
+    }
+  ],
+  "sla": {
+    "p50_ms": 200,
+    "p95_ms": 500,
+    "p99_ms": 1000,
+    "error_rate": 0.01,
+    "success_rate": 0.99
+  },
+  "monitoring": {
+    "prometheus_endpoint": "https://bcas-add-in.qa-ue2.bcas.cudaops.com/metrics",
+    "newrelic_enabled": true
+  },
+  "notes": [
+    "JWT token expires at 1794669728 (30 min from issue)",
+    "Account ID: 1001558985",
+    "Service uses 4MB JSON body limit",
+    "Archive operations are primary test targets",
+    "Weight distribution: Archive (60%), Search (15%), Auth (11%), Health (10%), Analytics (10%)"
+  ]
+}

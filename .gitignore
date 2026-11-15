@@ -1,8 +1,101 @@
-runs/**/credentials.json
-runs/**/*.env
-**/__pycache__/
-**/*.pyc
-.pytest_cache/
+# Test runs and results
+runs/
+*.log
+
+# Kubernetes metrics
+k8s_metrics*.csv
+k8s_metrics*.html
+k8s_chart*.html
+*_metrics.csv
+bcas_*.csv
+bcas_*.html
+
+# Credentials and secrets
+**/credentials.json
+**/*.env
+*.pem
+*.key
+.newrelic_api_key
+newrelic.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.virtualenv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+.cache/
+
+# Claude/Superpowers
 .superpowers/
+
+# Generated reports (keep templates, ignore generated)
+**/PERFORMANCE_REPORT.md
+API_VALIDATION_REPORT.md
+BCAS_*.md
+EXECUTIVE_SUMMARY.md
+PREVALIDATION_ADDED.md
+PRE_VALIDATION_GUIDE.md
+VALIDATION_NOW_AUTOMATIC.md
+
+# Project configs hold live credentials; commit *.example.json only
+projects/*-config.json

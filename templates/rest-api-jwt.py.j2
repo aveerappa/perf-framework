@@ -11,22 +11,35 @@ class APIUser(HttpUser):
             "Authorization": "Bearer {{ jwt_token }}",
             "Content-Type": "application/json"
         }
+        {% if graph_token %}
+        self.graph_headers = {
+            "Authorization": "Bearer {{ jwt_token }}",
+            "x-ms-graph-token": "{{ graph_token }}",
+            "Content-Type": "application/json"
+        }
+        {% endif %}
 
     {% for ep in endpoints %}
-    @task
+    @task({{ ep.weight }})
     def {{ ep.name }}(self):
         """{{ ep.method }} {{ ep.path }}"""
+        {% if ep.requires_graph_token %}
+        # Requires both JWT and Microsoft Graph token
+        headers = self.graph_headers
+        {% else %}
+        headers = self.headers
+        {% endif %}
         {% if ep.payload %}
-        payload = {{ ep.payload }}
+        payload = json.loads('''{{ ep.payload }}''')
         self.client.{{ ep.method.lower() }}(
             "{{ ep.path }}",
-            headers=self.headers,
+            headers=headers,
             json=payload
         )
         {% else %}
         self.client.{{ ep.method.lower() }}(
             "{{ ep.path }}",
-            headers=self.headers
+            headers=headers
         )
         {% endif %}
     {% endfor %}
