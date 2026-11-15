@@ -42,11 +42,11 @@ bcas-add-in-7d9f8c6b4-def34   138m         498Mi
 #### Step 1: Run monitoring script in parallel with load test
 
 ```bash
-# Terminal 1: Start metrics collection
-./monitor_during_test.sh <namespace> <service-name> <duration> <output-file>
+# Terminal 1: Start metrics collection (services are configured inside the script)
+./monitor_multi_service.sh <duration> <output-file>
 
 # Example: Monitor for 5 minutes (300s)
-./monitor_during_test.sh bcas-qa bcas-add-in 300 bcas_metrics.csv
+./monitor_multi_service.sh 300 bcas_metrics.csv
 ```
 
 #### Step 2: Run your load test (in separate terminal)
@@ -111,7 +111,7 @@ python fetch_k8s_metrics.py \
 
 ```bash
 # 1. Start K8s metrics collection (5 min = 300s)
-./monitor_during_test.sh bcas-qa bcas-add-in 300 metrics.csv &
+./monitor_multi_service.sh 300 metrics.csv &
 MONITOR_PID=$!
 
 # 2. Wait 5 seconds for monitoring to initialize
@@ -341,7 +341,7 @@ perf-framework/
 │       ├── k8s_metrics.csv            # K8s timeline
 │       ├── k8s_metrics_chart.html     # K8s visualization
 │       └── combined_metrics.html      # Combined view
-├── monitor_during_test.sh             # Monitoring script
+├── monitor_multi_service.sh           # Monitoring script
 ├── fetch_k8s_metrics.py              # K8s collector
 ├── plot_k8s_metrics.py               # Visualization
 └── K8S_METRICS_GUIDE.md              # This file
@@ -359,7 +359,7 @@ perf-framework/
 # Current: 100 RPS at 50% CPU
 # Test: 200 RPS
 
-./monitor_during_test.sh bcas-qa bcas-add-in 300 capacity_test.csv &
+./monitor_multi_service.sh 300 capacity_test.csv &
 /perf-execute --users 20 --duration 300  # 2x users
 
 # Check if CPU stays under 80%
@@ -372,7 +372,7 @@ python plot_k8s_metrics.py capacity_test.csv
 
 ```bash
 # Check average CPU/Memory usage
-./monitor_during_test.sh bcas-qa bcas-add-in 600 optimization.csv &
+./monitor_multi_service.sh 600 optimization.csv &
 
 # If avg CPU < 30% and avg Memory < 40%:
 # → Consider reducing resource limits
@@ -418,7 +418,7 @@ python fetch_k8s_metrics.py \
 ### Monitoring script permission denied
 
 ```bash
-chmod +x monitor_during_test.sh
+chmod +x monitor_multi_service.sh
 ```
 
 ---

@@ -51,7 +51,7 @@ CPU and Memory metrics from Kubernetes are now **automatically included** in eve
 
 ## 🔄 Automatic Detection
 
-The report generator (`generate_report.py`) now:
+The report generator (`generate_enterprise_report.py`) now:
 1. Checks if `k8s_metrics.csv` exists in the run directory
 2. If found: Loads metrics and adds K8s section
 3. If not found: Generates standard report (no K8s section)
@@ -62,7 +62,7 @@ The report generator (`generate_report.py`) now:
 
 ### Run Test with Metrics (Automatic)
 ```bash
-./run_test_now.sh
+./run_test.sh bcas-add-in-config.json 60
 ```
 
 This will:
@@ -73,11 +73,7 @@ This will:
 
 ### Generate Report After Test
 ```bash
-# For latest run
-python generate_report.py
-
-# For specific run
-python generate_report.py runs/2026-11-14T18-21-28Z/
+python generate_enterprise_report.py runs/2026-11-14T18-21-28Z/
 ```
 
 If `k8s_metrics.csv` exists in the run directory, K8s metrics are automatically included.
@@ -141,7 +137,7 @@ Analysis: ✅ Low CPU with high latency suggests I/O bottleneck
 
 ### Modified Files
 
-**1. `generate_report.py`**
+**1. `generate_enterprise_report.py`**
 - Added K8s metrics detection (`k8s_metrics.csv`)
 - Calculate K8s statistics (avg, max, min CPU/Memory)
 - Generate CPU utilization chart (per-pod, with threshold)
@@ -150,14 +146,14 @@ Analysis: ✅ Low CPU with high latency suggests I/O bottleneck
 - Add Kubernetes Metrics section with analysis
 - Automatic I/O vs CPU bottleneck detection
 
-**2. `run_test_now.sh`**
+**2. `run_test.sh`**
 - Updated output messages
 - Single unified report reference
 
 ### No Changes Needed To
 
 - `plot_k8s_metrics.py` - still generates standalone chart (optional)
-- `monitor_during_test.sh` - still collects metrics
+- `monitor_multi_service.sh` - still collects metrics
 - Test execution workflow
 
 ## 🔧 Technical Details

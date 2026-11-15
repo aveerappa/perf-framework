@@ -15,8 +15,7 @@ perf-framework/
 │   ├── bcas-add-in-test-plan.yaml    # Test plan
 │   └── <your-service>-config.json    # Add more projects here
 │
-├── run_test.sh                        # Smart test runner
-└── run_test_now.sh                    # Quick runner (bcas-add-in only)
+└── run_test.sh                        # Smart test runner
 ```
 
 ## Usage
@@ -292,7 +291,6 @@ python validate_config.py projects/bcas-add-in-config.json
 
 Already done! All files moved:
 - ✅ `examples/` → `projects/`
-- ✅ `run_test_now.sh` updated
 - ✅ `README.md` updated
 - ✅ Skills updated
 

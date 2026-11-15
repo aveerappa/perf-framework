@@ -350,16 +350,6 @@ Monitor({
 })
 ```
 
-#### Option C: Simple Progress Script
-
-Use the provided `show_test_progress.sh`:
-
-```bash
-./show_test_progress.sh runs/2026-11-14T19-26-14Z 300
-```
-
-Shows animated progress bar + live metrics
-
 ### 8. Collect Results
 
 When test completes:

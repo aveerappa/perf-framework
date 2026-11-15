@@ -4,7 +4,7 @@
 
 When running tests in background, use the `Monitor` tool to stream live updates to the user.
 
-### Method 1: Monitor Background Test Output (Recommended)
+### Method 1: Monitor Background Test Output
 
 ```bash
 # Start test in background
@@ -25,19 +25,24 @@ Monitor({
 })
 ```
 
-### Method 2: Progress Script with Monitor
+### Method 2: Live Stats Every 60s with `monitor_progress.sh` (Recommended)
 
 ```python
-# Start test
-task_id = start_background_test()
+# Start test, redirecting output to a log the monitor can read
+Bash({
+    'command': f'./run_test.sh {config_file} {duration} > {output_file} 2>&1',
+    'run_in_background': True,
+})
 
-# Monitor with custom script
+# One stats line per interval: users, rps, fail/s, p50, p95, totals
 Monitor({
-    'command': f'./show_test_progress.sh {run_dir} {duration}',
-    'description': 'Test progress bar and stats',
-    'timeout_ms': duration * 1000 + 60000
+    'command': f'./monitor_progress.sh {output_file} {duration} 60',
+    'description': f'Performance test ({duration}s)',
+    'timeout_ms': duration * 1000 + 240000
 })
 ```
+
+The script locates the run directory from the `Run directory:` line in the log, reads the latest `Aggregated` row of `results/stats_stats_history.csv`, and flags `fail/s > 0` or `p50 > 5s`.
 
 ### Method 3: Parse Locust Stats in Real-Time
 

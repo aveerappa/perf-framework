@@ -23,7 +23,7 @@ pip install locust pandas plotly jinja2
 
 ```bash
 # Quick test with K8s metrics (1 minute)
-./run_test_now.sh
+./run_test.sh bcas-add-in-config.json 60
 ```
 
 This automatically:
@@ -133,11 +133,14 @@ open runs/<timestamp>/PERFORMANCE_REPORT.html
 ```
 perf-framework/
 ├── README.md                      # This file
+├── run_test.sh                    # End-to-end test runner (validate → locust → report)
 ├── validate_config.py             # Pre-flight validation
-├── generate_report.py             # Report generator (with K8s)
-├── monitor_during_test.sh         # K8s metrics collector
-├── plot_k8s_metrics.py           # Standalone K8s charts
-├── run_test_now.sh               # Quick test runner
+├── monitor_multi_service.sh       # K8s CPU/memory collector (bcas-add-in + web-core-api)
+├── monitor_progress.sh            # Live stats line every 60s during a run
+├── generate_enterprise_report.py  # Unified HTML report (performance + K8s)
+├── plot_k8s_metrics.py            # Combined K8s chart
+├── plot_k8s_metrics_individual.py # Per-service K8s charts (used by the report)
+├── barracuda-logo.jpg             # Embedded in the report header
 ├── templates/
 │   └── rest-api-jwt.py.j2        # Locust template
 ├── docs/
