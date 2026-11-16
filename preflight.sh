@@ -69,3 +69,17 @@ check_kubectl() {
 check_vpn || exit 10
 check_aws_sso || exit 11
 check_kubectl "$NAMESPACE" || exit 12
+
+echo ""
+echo "4️⃣  Validating configuration..."
+python "$SCRIPT_DIR/validate_config.py" "$CONFIG_FILE"
+rc=$?
+if [ "$rc" -ne 0 ]; then
+    exit "$rc"
+fi
+
+echo ""
+echo "======================================================================"
+echo "✅ PRE-FLIGHT PASSED"
+echo "======================================================================"
+exit 0

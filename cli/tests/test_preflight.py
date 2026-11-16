@@ -120,3 +120,24 @@ def test_namespace_derived_from_service_name(tmp_path):
     run_preflight(write_config(tmp_path, service_name="web_core_api"), env)
     assert "kubectl get pods -n web-core-api" in log.read_text()
     assert "--request-timeout=15s" in log.read_text()
+
+
+def test_all_pass_exits_0_and_runs_validate(tmp_path):
+    env, log = env_for(tmp_path)
+    cfg = write_config(tmp_path)
+    r = run_preflight(cfg, env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert f"python {REPO / 'validate_config.py'} {cfg}" in log.read_text()
+    assert "PRE-FLIGHT PASSED" in r.stdout
+
+
+def test_validate_failure_propagates(tmp_path):
+    env, _ = env_for(tmp_path, python_rc=1)
+    assert run_preflight(write_config(tmp_path), env).returncode == 1
+
+
+def test_runs_from_other_cwd(tmp_path):
+    env, log = env_for(tmp_path)
+    r = run_preflight(write_config(tmp_path), env, cwd=tmp_path)
+    assert r.returncode == 0
+    assert str(REPO / "validate_config.py") in log.read_text()

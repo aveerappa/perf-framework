@@ -68,12 +68,11 @@ echo "Namespace:    $NAMESPACE"
 echo "Duration:     ${DURATION}s ($((DURATION/60))m $((DURATION%60))s)"
 echo "=================================================================="
 
-# Validate configuration
 echo ""
-echo "1️⃣  Validating configuration..."
-if ! python validate_config.py "$CONFIG_FILE"; then
+echo "1️⃣  Pre-flight checks..."
+if ! ./preflight.sh "$CONFIG_FILE"; then
     echo ""
-    echo "❌ Validation failed. Please fix issues before running test."
+    echo "❌ Pre-flight failed. Fix the issues above before running the test."
     exit 1
 fi
 
