@@ -79,7 +79,7 @@ fi
 # Generate test files
 echo ""
 echo "2️⃣  Generating test files..."
-python -c "
+RUN_DIR=$(python -c "
 import json
 from jinja2 import Template
 from pathlib import Path
@@ -126,19 +126,6 @@ with open(run_dir / 'locustfile.py', 'w') as f:
 with open(run_dir / 'config.json', 'w') as f:
     json.dump(config, f, indent=2)
 
-print(run_dir)
-"
-
-RUN_DIR=$(python -c "
-import json
-from pathlib import Path
-from datetime import datetime, timezone
-with open('$CONFIG_FILE') as f:
-    config = json.load(f)
-timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H-%M-%SZ')
-run_dir = Path('runs') / timestamp
-run_dir.mkdir(parents=True, exist_ok=True)
-(run_dir / 'results').mkdir(exist_ok=True)
 print(run_dir)
 ")
 
