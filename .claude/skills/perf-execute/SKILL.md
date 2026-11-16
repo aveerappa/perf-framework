@@ -28,8 +28,9 @@ Generate Locust test files from templates and execute load tests with real-time 
 1. **List Available Projects** from `projects/` directory
 2. **Show project details** (service name, base URL)
 3. **Ask user to select** which project to run
-4. **Ask for duration** (default: 60 seconds)
-5. **DO NOT run all projects** - only run the selected one
+4. **Ask for the full load profile** (users, spawn_rate, duration, target_rps) — ALWAYS, every run
+5. **Write the answers into the config** and run `./preflight.sh` in the FOREGROUND
+6. **DO NOT run all projects** - only run the selected one
 
 ### Step 1: Discover Projects
 
@@ -56,20 +57,59 @@ Options:
 1. bcas-add-in-config.json - BCAS Add-in API
 2. orders-api-config.json - Orders API
 3. payments-api-config.json - Payments API
-
-Then ask:
-"How long should the test run?"
-- 1 minute (60s) [Default]
-- 5 minutes (300s)
-- 10 minutes (600s)
-- Custom (specify seconds)
 ```
 
-### Step 3: Execute Selected Project
+Then ask for the **full load profile** in ONE AskUserQuestion call with four questions. Read the current values from the config first:
 
 ```bash
-./run_test.sh <selected-config>.json <duration>
+jq -r '.load_profile | "\(.users) \(.spawn_rate) \(.duration) \(.target_rps)"' projects/<config>.json
 ```
+
+| Header | Question | First option | Alternatives |
+|--------|----------|--------------|--------------|
+| `Users` | How many concurrent users? | `<current> (current)` | 50 / 200 / 500 |
+| `Spawn rate` | Users spawned per second? | `<current> (current)` | 10 / 25 / 100 |
+| `Duration` | Test duration in seconds? | `<current>s (current)` | 60s / 300s / 600s |
+| `Target RPS` | Target requests per second? | `<current> (current)` | 100 / 250 / 1000 |
+
+Drop any alternative equal to the current value. `target_rps` is informational only — Locust does not consume it; it is recorded in the config and shown in the report.
+
+### Step 3: Persist the Load Profile
+
+Write the answers back so they become the next run's defaults:
+
+```bash
+jq --argjson u "$USERS" --argjson s "$SPAWN" --argjson d "$DURATION" --argjson r "$TARGET_RPS" \
+   '.load_profile = {users:$u, spawn_rate:$s, duration:$d, target_rps:$r}' \
+   projects/<config>.json > /tmp/cfg.json && mv /tmp/cfg.json projects/<config>.json
+```
+
+### Step 4: Pre-flight in the Foreground
+
+Run with a plain (NOT background) Bash call and `timeout: 180000` — `aws-qa-login` may open a browser and wait for the user:
+
+```bash
+./preflight.sh projects/<config>.json
+```
+
+| Exit | Meaning | Action |
+|------|---------|--------|
+| 0 | All checks passed | Continue to Step 5 |
+| 2 | Usage / config file not found | Fix the path; stop |
+| 10 | Barracuda VPN not connected | Tell user to connect Barracuda VPN Client; stop |
+| 11 | AWS QA SSO login failed or cancelled | Tell user to run `aws-qa-login` manually; stop |
+| 12 | kubectl cannot list pods in the namespace | Show output; stop |
+| other | `validate_config.py` failed (expired JWT, 401s, bad endpoints) | Show output; stop |
+
+Never start the test on a non-zero exit.
+
+### Step 5: Execute Selected Project
+
+```bash
+./run_test.sh <selected-config>.json $DURATION
+```
+
+Launch in the background and monitor exactly as in Core Workflow §7. `run_test.sh` re-runs `preflight.sh` as its own step 1; by then the SSO session is fresh, so it is non-interactive.
 
 **Example Flow:**
 
@@ -87,19 +127,26 @@ Which project would you like to test?"
 
 User: Select option 1 (bcas-add-in)
 
-Claude: "How long should the test run?"
+Claude: Asks four questions — Users [100 (current) / 50 / 200 / 500],
+        Spawn rate [50 (current) / 10 / 25 / 100],
+        Duration [900s (current) / 60s / 300s / 600s],
+        Target RPS [500 (current) / 100 / 250 / 1000]
 
-User: Select "5 minutes (300s)"
+User: 100 users, 50/s, 300s, 500 rps
 
-Claude: Runs ./run_test.sh bcas-add-in-config.json 300
+Claude: Writes load_profile into projects/bcas-add-in-config.json
+Claude: Runs ./preflight.sh projects/bcas-add-in-config.json   (foreground; browser may open for SSO)
+        → ✅ PRE-FLIGHT PASSED
+Claude: Runs ./run_test.sh bcas-add-in-config.json 300          (background + Monitor)
 ```
 
 ### When Argument Provided
 
 If user provides config name directly: `/perf-execute bcas-add-in-config.json`
 - Skip project selection
-- Ask for duration only (or use default 60s)
-- Run immediately after confirmation
+- STILL ask the full load profile (Step 2) and persist it (Step 3)
+- STILL run `./preflight.sh` in the foreground (Step 4) — never skip it
+- Run after preflight exits 0
 
 ## Core Workflow
 
@@ -128,67 +175,70 @@ done
 
 **Then use AskUserQuestion** with the discovered projects.
 
-### 2. Pre-Flight Validation ✨
+### 2. Pre-Flight Checks (environment + config)
 
-**CRITICAL:** Always validate configuration before executing tests
-
-### 1. Pre-Flight Validation ✨ NEW
-
-**CRITICAL:** Always validate configuration before executing tests.
+**CRITICAL:** Always run pre-flight in the FOREGROUND before executing tests. It may open a browser for AWS SSO login, which would hang invisibly inside a background job.
 
 ```bash
-# Run validation script
-python validate_config.py config.json
-
-# Check exit code
-if [ $? -ne 0 ]; then
-    echo "❌ Validation failed. Fix issues before running test."
-    exit 1
-fi
+./preflight.sh projects/<config>.json    # plain Bash call, timeout 180000
 ```
 
-**What gets validated:**
-- ✅ JWT token not expired (>5 min remaining)
-- ✅ Base URL reachable (health check)
-- ✅ Authentication working (no 401s)
-- ✅ Critical endpoints responding (sample 5 endpoints)
-- ✅ Configuration values valid (users > 0, duration > 0)
+| Exit | Meaning | Action |
+|------|---------|--------|
+| 0 | All checks passed | Continue |
+| 2 | Usage / config file not found | Fix the path; stop |
+| 10 | Barracuda VPN not connected | Tell user to connect Barracuda VPN Client; stop |
+| 11 | AWS QA SSO login failed or cancelled | Tell user to run `aws-qa-login` manually; stop |
+| 12 | kubectl cannot list pods in the namespace | Show output; stop |
+| other | `validate_config.py` failed | Show output; stop |
 
-**Example validation output:**
+**What gets checked, in order (each is a precondition for the next):**
+1. **Barracuda VPN** — client process running AND a `utun` interface holding a `10.x` address
+2. **AWS QA SSO** — runs the user's `aws-qa-login` zsh function (sourced from `~/Documents/Work/workspace/aws-sso-setup/aws-env.sh`, override with `AWS_ENV_FILE`); opens a browser login only if the session is expired, then refreshes kubeconfig for `bcas-qa-ue2-default-cluster`
+3. **kubectl pod access** — `kubectl get pods -n <namespace>` must list ≥1 pod (namespace = `service_name` with `_`→`-`)
+4. **Configuration** — existing `validate_config.py`:
+   - ✅ JWT token not expired (>5 min remaining)
+   - ✅ Base URL reachable (health check)
+   - ✅ Authentication working (no 401s)
+   - ✅ Critical endpoints responding (sample 5 endpoints)
+   - ✅ Configuration values valid (users > 0, duration > 0)
+
+**Example output:**
 ```
+🛫 Pre-flight Checks
+======================================================================
+Config: projects/bcas-add-in-config.json
+======================================================================
+
+1️⃣  Checking Barracuda VPN...
+   ✅ VPN connected (utun4: 10.39.244.233)
+
+2️⃣  Checking AWS QA SSO session...
+   SSO session is still valid for profile 'qa'
+   Updating kubeconfig...
+   ✅ AWS qa profile active
+
+3️⃣  Checking kubectl access to namespace bcas-add-in...
+   ✅ 2 pod(s) found in bcas-add-in
+
+4️⃣  Validating configuration...
 🔍 API Configuration Validator
-======================================================================
-
-1️⃣  Checking JWT Token...
-   ✅ JWT token valid for 25 minutes
-
-2️⃣  Checking Base URL Reachability...
-   ✅ Health endpoint reachable: /api/v1/health
-
-3️⃣  Checking Authentication...
-   ✅ Authentication working: /api/v1/me
-
-4️⃣  Sampling Critical Endpoints...
-   ✓ GET /api/v1/health → 200
-   ✓ POST /api/v1/orders → 201
-
-5️⃣  Checking Configuration Values...
-   ✓ Users: 100
-   ✓ Duration: 300s
-
-======================================================================
+   ... (JWT, base URL, auth, endpoints, config values) ...
 ✅ VALIDATION PASSED
-Configuration is ready for performance testing.
+
+======================================================================
+✅ PRE-FLIGHT PASSED
 ======================================================================
 ```
 
-**If validation fails:**
-- Show clear error messages
-- Provide fix recommendations
+**If pre-flight fails:**
+- Show the output as-is (it names the failing check and the fix)
 - DO NOT proceed to test execution
-- Ask user to fix issues and re-validate
+- Ask user to fix the issue and re-run
 
 **Common issues caught:**
+- 🔴 VPN disconnected (prevents kubectl/metrics failures)
+- 🔴 Expired AWS SSO session (prevents silently empty K8s metrics)
 - 🔴 Expired JWT tokens (prevents 60%+ auth failures)
 - 🔴 Wrong API paths (prevents 404 errors)
 - 🔴 Backend services down (prevents 502 errors)
@@ -430,16 +480,14 @@ Actions:
    - bcas-add-in-config.json - BCAS Add-in API
    - orders-api-config.json - Orders API
 4. User selects: bcas-add-in-config.json
-5. Ask for duration:
-   - 1 minute (60s) [Default]
-   - 5 minutes (300s)
-   - 10 minutes (600s)
-   - Custom
-6. User selects: 5 minutes
-7. Run: ./run_test.sh bcas-add-in-config.json 300
-8. Collect K8s metrics automatically
-9. Generate unified report
-10. Open PERFORMANCE_REPORT.html
+5. Ask load profile (users, spawn_rate, duration, target_rps) — current config values first
+6. User answers: 100 users, 50/s, 300s, 500 rps
+7. Write load_profile to projects/bcas-add-in-config.json
+8. Run ./preflight.sh projects/bcas-add-in-config.json in foreground; stop on non-zero
+9. Run: ./run_test.sh bcas-add-in-config.json 300
+10. Collect K8s metrics automatically
+11. Generate unified report
+12. Open PERFORMANCE_REPORT.html
 ```
 
 ### Scenario 2: With Config Name
@@ -448,10 +496,12 @@ User: /perf-execute bcas-add-in-config.json
 
 Actions:
 1. Find config in projects/ folder
-2. Ask for duration (or use default 60s)
-3. Run: ./run_test.sh bcas-add-in-config.json 60
-4. Collect K8s metrics
-5. Generate report
+2. Ask load profile (users, spawn_rate, duration, target_rps)
+3. Write load_profile to config
+4. Run ./preflight.sh in foreground; stop on non-zero
+5. Run: ./run_test.sh bcas-add-in-config.json <duration>
+6. Collect K8s metrics
+7. Generate report
 ```
 
 ### Scenario 3: With Config and Duration
@@ -460,11 +510,13 @@ User: /perf-execute bcas-add-in-config.json 300
 
 Actions:
 1. Find projects/bcas-add-in-config.json
-2. Validate configuration
-3. Run: ./run_test.sh bcas-add-in-config.json 300
-4. Auto-collect K8s metrics (60 samples over 5 min)
-5. Generate unified report with performance + K8s metrics
-6. Open report automatically
+2. Ask load profile with duration pre-selected to 300s (users, spawn_rate, target_rps still asked)
+3. Write load_profile to config
+4. Run ./preflight.sh in foreground; stop on non-zero
+5. Run: ./run_test.sh bcas-add-in-config.json 300
+6. Auto-collect K8s metrics (60 samples over 5 min)
+7. Generate unified report with performance + K8s metrics
+8. Open report automatically
 ```
 
 ### Scenario 4: Multiple Projects Available
@@ -480,8 +532,9 @@ Projects found:
 Actions:
 1. Use AskUserQuestion to show all 4 projects with descriptions
 2. User selects one (NOT all - never run multiple)
-3. Ask duration
-4. Run selected project only
+3. Ask load profile (users, spawn_rate, duration, target_rps)
+4. Write load_profile to config, run ./preflight.sh in foreground
+5. Run selected project only
 ```
 
 ## Error Handling
@@ -518,6 +571,10 @@ Actions:
 Before running:
 
 - [ ] config.json exists and is valid
+- [ ] Barracuda VPN connected
+- [ ] AWS qa SSO session active (aws-qa-login)
+- [ ] kubectl can list pods in the target namespace
+- [ ] Load profile confirmed for this run
 - [ ] Locust is installed
 - [ ] Service is accessible
 - [ ] Credentials are current (not expired)
