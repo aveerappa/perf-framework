@@ -84,3 +84,39 @@ def test_vpn_ok_reports_interface(tmp_path):
     env, _ = env_for(tmp_path)
     r = run_preflight(write_config(tmp_path), env)
     assert "utun3" in r.stdout and "10.55.100.238" in r.stdout
+
+
+def test_sso_failure_exits_11_and_skips_kubectl(tmp_path):
+    env, log = env_for(tmp_path, sso_rc=1)
+    r = run_preflight(write_config(tmp_path), env)
+    assert r.returncode == 11
+    assert "fake aws-qa-login" in r.stdout
+    assert "kubectl" not in log.read_text()
+
+
+def test_missing_aws_env_file_exits_11(tmp_path):
+    env, _ = env_for(tmp_path)
+    env["AWS_ENV_FILE"] = str(tmp_path / "does-not-exist.sh")
+    r = run_preflight(write_config(tmp_path), env)
+    assert r.returncode == 11
+    assert "does-not-exist.sh" in r.stdout
+
+
+def test_kubectl_error_exits_12_and_shows_stderr(tmp_path):
+    env, _ = env_for(tmp_path, kubectl_rc=1, kubectl_out="",
+                     kubectl_err="Error when retrieving token from sso: Token has expired and refresh failed")
+    r = run_preflight(write_config(tmp_path), env)
+    assert r.returncode == 12
+    assert "Token has expired" in r.stdout
+
+
+def test_kubectl_no_pods_exits_12(tmp_path):
+    env, _ = env_for(tmp_path, kubectl_rc=0, kubectl_out="")
+    assert run_preflight(write_config(tmp_path), env).returncode == 12
+
+
+def test_namespace_derived_from_service_name(tmp_path):
+    env, log = env_for(tmp_path)
+    run_preflight(write_config(tmp_path, service_name="web_core_api"), env)
+    assert "kubectl get pods -n web-core-api" in log.read_text()
+    assert "--request-timeout=15s" in log.read_text()

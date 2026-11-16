@@ -6,11 +6,14 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$1"
+AWS_ENV_FILE="${AWS_ENV_FILE:-$HOME/Documents/Work/workspace/aws-sso-setup/aws-env.sh}"
 
 if [ -z "$CONFIG_FILE" ] || [ ! -f "$CONFIG_FILE" ]; then
     echo "Usage: ./preflight.sh <config.json>" >&2
     exit 2
 fi
+
+NAMESPACE=$(jq -r '.service_name' "$CONFIG_FILE" | tr '_' '-')
 
 echo "🛫 Pre-flight Checks"
 echo "======================================================================"
@@ -31,4 +34,38 @@ check_vpn() {
     return 1
 }
 
+check_aws_sso() {
+    echo ""
+    echo "2️⃣  Checking AWS QA SSO session..."
+    if [ ! -f "$AWS_ENV_FILE" ]; then
+        echo "   ❌ aws-env.sh not found: $AWS_ENV_FILE"
+        return 1
+    fi
+    # aws-qa-login is a zsh function; it may open a browser and block until login completes
+    if zsh -c 'source "$1" && aws-qa-login' _ "$AWS_ENV_FILE" 2>&1 | sed 's/^/   /'; [ "${PIPESTATUS[0]}" -ne 0 ]; then
+        echo "   ❌ AWS qa SSO login failed"
+        return 1
+    fi
+    echo "   ✅ AWS qa profile active"
+    return 0
+}
+
+check_kubectl() {
+    local ns="$1" output rc count
+    echo ""
+    echo "3️⃣  Checking kubectl access to namespace $ns..."
+    output=$(kubectl get pods -n "$ns" --no-headers --request-timeout=15s 2>&1)
+    rc=$?
+    count=$(printf '%s\n' "$output" | grep -c .)
+    if [ "$rc" -ne 0 ] || [ "$count" -eq 0 ]; then
+        echo "   ❌ Cannot list pods in $ns"
+        printf '%s\n' "$output" | sed 's/^/   /'
+        return 1
+    fi
+    echo "   ✅ $count pod(s) found in $ns"
+    return 0
+}
+
 check_vpn || exit 10
+check_aws_sso || exit 11
+check_kubectl "$NAMESPACE" || exit 12
