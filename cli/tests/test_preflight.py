@@ -57,6 +57,16 @@ def test_usage_error_without_config(tmp_path):
     assert "Usage" in r.stderr
 
 
+def test_missing_service_name_exits_2_before_any_check(tmp_path):
+    env, log = env_for(tmp_path)
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text(json.dumps({"base_url": "https://x"}))
+    r = run_preflight(cfg, env)
+    assert r.returncode == 2
+    assert "service_name" in r.stderr
+    assert log.read_text() == ""
+
+
 def test_vpn_process_missing_exits_10(tmp_path):
     env, log = env_for(tmp_path, pgrep_rc=1)
     r = run_preflight(write_config(tmp_path), env)

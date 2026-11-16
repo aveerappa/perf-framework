@@ -13,7 +13,11 @@ if [ -z "$CONFIG_FILE" ] || [ ! -f "$CONFIG_FILE" ]; then
     exit 2
 fi
 
-NAMESPACE=$(jq -r '.service_name' "$CONFIG_FILE" | tr '_' '-')
+NAMESPACE=$(jq -r '.service_name // empty' "$CONFIG_FILE" 2>/dev/null | tr '_' '-')
+if [ -z "$NAMESPACE" ]; then
+    echo "Cannot read service_name from $CONFIG_FILE (is jq installed and the config valid?)" >&2
+    exit 2
+fi
 
 echo "🛫 Pre-flight Checks"
 echo "======================================================================"
