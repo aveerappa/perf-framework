@@ -20,6 +20,7 @@ Generate Locust test files from templates and execute load tests with real-time 
 - Locust is installed (`pip install locust`)
 - Service is accessible at base_url
 - Credentials are valid
+- **AWS SSO setup**: Set `AWS_ENV_FILE` environment variable pointing to your aws-env.sh script, or configure a common location (see AWS SSO Configuration below)
 
 ## Project Selection Workflow
 
@@ -84,7 +85,23 @@ jq --argjson u "$USERS" --argjson s "$SPAWN" --argjson d "$DURATION" --argjson r
    projects/<config>.json > /tmp/cfg.json && mv /tmp/cfg.json projects/<config>.json
 ```
 
-### Step 4: Pre-flight in the Foreground
+### Step 4: AWS SSO Configuration
+
+**IMPORTANT:** Before running pre-flight, ensure AWS SSO is configured:
+
+```bash
+# Option 1: Set AWS_ENV_FILE environment variable (recommended for portability)
+export AWS_ENV_FILE="$HOME/path/to/your/aws-env.sh"
+
+# Option 2: Use common location that preflight.sh checks:
+#   - ~/.aws/aws-env.sh
+#   - ~/.config/aws/aws-env.sh
+#   - $HOME/Documents/Work/workspace/aws-sso-setup/aws-env.sh (legacy default)
+```
+
+If `AWS_ENV_FILE` is not set, `preflight.sh` will search these locations in order and use the first one found.
+
+### Step 5: Pre-flight in the Foreground
 
 Run with a plain (NOT background) Bash call and `timeout: 180000` — `aws-qa-login` may open a browser and wait for the user:
 
@@ -103,7 +120,7 @@ Run with a plain (NOT background) Bash call and `timeout: 180000` — `aws-qa-lo
 
 Never start the test on a non-zero exit.
 
-### Step 5: Execute Selected Project
+### Step 6: Execute Selected Project
 
 ```bash
 ./run_test.sh <selected-config>.json $DURATION
@@ -194,7 +211,7 @@ done
 
 **What gets checked, in order (each is a precondition for the next):**
 1. **Barracuda VPN** — client process running AND a `utun` interface holding a `10.x` address
-2. **AWS QA SSO** — runs the user's `aws-qa-login` zsh function (sourced from `~/Documents/Work/workspace/aws-sso-setup/aws-env.sh`, override with `AWS_ENV_FILE`); opens a browser login only if the session is expired, then refreshes kubeconfig for `bcas-qa-ue2-default-cluster`
+2. **AWS QA SSO** — runs the user's `aws-qa-login` zsh function (sourced from the aws-env.sh file found via `AWS_ENV_FILE` env var or standard locations); opens a browser login only if the session is expired, then refreshes kubeconfig for `bcas-qa-ue2-default-cluster`
 3. **kubectl pod access** — `kubectl get pods -n <namespace>` must list ≥1 pod (namespace = `service_name` with `_`→`-`)
 4. **Configuration** — existing `validate_config.py`:
    - ✅ JWT token not expired (>5 min remaining)
@@ -565,6 +582,33 @@ Actions:
 - Reduce load (fewer users or lower spawn rate)
 - Check service logs for issues
 ```
+
+## AWS SSO Configuration (Generic Setup)
+
+To make `preflight.sh` work on any computer, configure your AWS SSO environment file location:
+
+### Option 1: Environment Variable (Recommended)
+
+```bash
+# In your ~/.zshrc or ~/.bashrc
+export AWS_ENV_FILE="$HOME/your-custom-path/aws-env.sh"
+```
+
+### Option 2: Standard Locations
+
+Place your `aws-env.sh` in one of these locations (checked in order):
+1. `~/.aws/aws-env.sh`
+2. `~/.config/aws/aws-env.sh`
+3. `$HOME/Documents/Work/workspace/aws-sso-setup/aws-env.sh` (legacy)
+
+`preflight.sh` will automatically find the first existing file.
+
+### What aws-env.sh Should Contain
+
+Your `aws-env.sh` should define the `aws-qa-login` function that:
+- Authenticates with AWS SSO
+- Updates kubeconfig for your EKS cluster
+- Returns 0 on success, non-zero on failure
 
 ## Execution Checklist
 

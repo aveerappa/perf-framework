@@ -40,6 +40,23 @@ The report includes:
 - **Analysis:** Automatic bottleneck detection (I/O vs CPU)
 - **SLA Status:** Pass/fail for each threshold
 
+## Prerequisites
+
+### AWS SSO Setup
+
+For EKS cluster access, configure AWS SSO:
+
+```bash
+# Option 1: Set environment variable (recommended)
+export AWS_ENV_FILE="$HOME/path/to/your/aws-env.sh"
+
+# Option 2: Place aws-env.sh in a standard location
+mkdir -p ~/.aws
+cp /path/to/your/aws-env.sh ~/.aws/aws-env.sh
+```
+
+See [AWS SSO Setup Guide](docs/AWS_SSO_SETUP.md) for details.
+
 ## Configuration
 
 Create `config.json` (or use `projects/bcas-add-in-config.json`):

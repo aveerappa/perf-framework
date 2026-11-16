@@ -6,7 +6,19 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$1"
-AWS_ENV_FILE="${AWS_ENV_FILE:-$HOME/Documents/Work/workspace/aws-sso-setup/aws-env.sh}"
+
+# Find AWS env file in standard locations if not explicitly set
+if [ -z "$AWS_ENV_FILE" ]; then
+    for candidate in \
+        "$HOME/.aws/aws-env.sh" \
+        "$HOME/.config/aws/aws-env.sh" \
+        "$HOME/Documents/Work/workspace/aws-sso-setup/aws-env.sh"; do
+        if [ -f "$candidate" ]; then
+            AWS_ENV_FILE="$candidate"
+            break
+        fi
+    done
+fi
 
 if [ -z "$CONFIG_FILE" ] || [ ! -f "$CONFIG_FILE" ]; then
     echo "Usage: ./preflight.sh <config.json>" >&2
